@@ -38,7 +38,9 @@ Hook::add('app_init', function () {
     }
     Route::rules($rules);
     if ($domains) {
-        Route::domain($domains);
+        foreach ($domains as $k => $v) {
+            Route::domain($k, $v);
+        }
     }
 
     // 获取系统配置
@@ -168,7 +170,7 @@ function get_addon_autoload_config($truncate = false)
             $rule            = array_map(function ($value) use ($addon) {
                 return "{$addon['name']}/{$value}";
             }, array_flip($conf['rewrite']));
-            if ($url_domain_deploy && isset($conf['domain']) && $conf['domain']) {
+            if (isset($conf['domain']) && $conf['domain']) {
                 $domain[] = [
                     'addon'  => $addon['name'],
                     'domain' => $conf['domain'],
@@ -389,7 +391,7 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
     //$indomain     = isset($dispatch['var']['indomain']) && $dispatch['var']['indomain'] ? true : false;
     $indomain     = false;
     $domainprefix = $config && isset($config['domain']) && $config['domain'] ? $config['domain'] : '';
-    $domain       = $domainprefix && Config::get('url_domain_deploy') ? $domainprefix : $domain;
+    $domain       = $domainprefix ? $domainprefix : $domain;
     $rewrite      = $config && isset($config['rewrite']) && $config['rewrite'] ? $config['rewrite'] : [];
     if ($rewrite) {
         $path = substr($url, stripos($url, '/') + 1);
