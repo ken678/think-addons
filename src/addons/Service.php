@@ -18,6 +18,8 @@ namespace think\addons;
 
 use app\common\library\Cache as CacheLib;
 use app\common\library\Menu as MenuLib;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\TransferException;
 use PhpZip\Exception\ZipException;
 use PhpZip\ZipFile;
 use RecursiveDirectoryIterator;
@@ -31,23 +33,84 @@ use util\Sql;
 class Service
 {
     /**
+     * 插件列表
+     */
+    public static function addons($params = [])
+    {
+        $params['domain'] = request()->host(true);
+        return self::sendRequest('/addon/index', $params, 'GET');
+    }
+
+    /**
+     * 检测插件是否购买授权
+     */
+    public static function isBuy($name, $extend = [])
+    {
+        $params = array_merge(['name' => $name, 'domain' => request()->host(true)], $extend);
+        return self::sendRequest('/addon/isbuy', $params, 'POST');
+    }
+
+    /**
+     * 远程下载插件
+     *
+     * @param string $name   插件名称
+     * @param array  $extend 扩展参数
+     * @return  string
+     */
+    public static function download($name, $extend = [])
+    {
+        $addonsTempDir = self::getAddonsBackupDir();
+        $tmpFile       = $addonsTempDir . $name . ".zip";
+        try {
+            $client   = self::getClient();
+            $response = $client->get('/addon/download', ['query' => array_merge(['name' => $name], $extend)]);
+            $body     = $response->getBody();
+            $content  = $body->getContents();
+        } catch (TransferException $e) {
+            throw new Exception("插件下载失败");
+        }
+
+        if ($write = fopen($tmpFile, 'w')) {
+            fwrite($write, $content);
+            fclose($write);
+            return $tmpFile;
+        }
+        throw new Exception("没有权限写入临时文件");
+    }
+
+    /**
      * 安装插件.
      * @param string $name   插件名称
      * @param boolean $force  是否覆盖
+     * @param array   $extend 扩展参数
      * @throws Exception
      * @return bool
      */
-    public static function install($name, $force = false)
+    public static function install($name, $force = false, $extend = [])
     {
+        if (!$name || (is_dir(ADDON_PATH . $name) && !$force)) {
+            throw new Exception('插件已经存在');
+        }
+        $extend['domain'] = request()->host(true);
+
+        // 远程下载插件
+        $tmpFile = Service::download($name, $extend);
+
+        $addonDir = self::getAddonDir($name);
+
         try {
+            // 解压插件压缩包到插件目录
+            Service::unzip($name);
             // 检查插件是否完整
             self::check($name);
             if (!$force) {
                 self::noconflict($name);
             }
         } catch (AddonException $e) {
+            @File::del_dir($addonDir);
             throw new AddonException($e->getMessage(), $e->getCode(), $e->getData());
         } catch (Exception $e) {
+            @File::del_dir($addonDir);
             throw new Exception($e->getMessage());
         }
         try {
@@ -74,6 +137,7 @@ class Service
                 }
             }
         } catch (Exception $e) {
+            @File::del_dir($addonDir);
             throw new Exception($e->getMessage());
         }
         self::runSQL($name);
@@ -296,6 +360,37 @@ class Service
                 @unlink($newAddonDir);
                 throw new Exception('无法解压缩文件');
             }
+
+            try {
+                // 默认启用该插件
+                $info = get_addon_info($name);
+                /*if ($info['status']) {
+                $info['status'] = 0;
+                set_addon_info($name, $info);
+                }*/
+                // 执行安装脚本
+                $class = get_addon_class($name);
+                if (class_exists($class)) {
+                    $addon = new $class();
+                    $addon->install();
+
+                    if (isset($info['has_adminlist']) && $info['has_adminlist']) {
+                        $admin_list = property_exists($addon, 'admin_list') ? $addon->admin_list : [];
+                        //添加菜单
+                        MenuLib::addAddonMenu($admin_list, $info);
+                    }
+                    $cache_list = property_exists($addon, 'cache_list') ? $addon->cache_list : [];
+                    if ($cache_list) {
+                        CacheLib::installAddonCache($cache_list, $info);
+                    }
+                }
+            } catch (Exception $e) {
+                @File::del_dir($newAddonDir);
+                throw new Exception($e->getMessage());
+            }
+            self::runSQL($name);
+            // 启用插件
+            //self::enable($name, true);
         } catch (AddonException $e) {
             throw new AddonException($e->getMessage(), $e->getCode(), $e->getData());
         } catch (Exception $e) {
@@ -305,6 +400,49 @@ class Service
             unset($uploadFile);
             @unlink($tmpFile);
         }
+        $info['config']   = get_addon_config($name) ? 1 : 0;
+        $info['testdata'] = is_file(Service::getTestdataFile($name));
+        return $info;
+    }
+
+    /**
+     * 解压插件
+     *
+     * @param string $name 插件名称
+     * @return  string
+     * @throws  Exception
+     */
+    public static function unzip($name)
+    {
+        if (!$name) {
+            throw new Exception('参数不正确');
+        }
+        $addonsBackupDir = self::getAddonsBackupDir();
+        $file            = $addonsBackupDir . $name . '.zip';
+
+        // 打开插件压缩包
+        $zip = new ZipFile();
+        try {
+            $zip->openFile($file);
+        } catch (ZipException $e) {
+            $zip->close();
+            throw new Exception('无法打开ZIP文件');
+        }
+
+        $dir = self::getAddonDir($name);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755);
+        }
+
+        // 解压插件压缩包
+        try {
+            $zip->extractTo($dir);
+        } catch (ZipException $e) {
+            throw new Exception('无法解压ZIP文件');
+        } finally {
+            $zip->close();
+        }
+        return $dir;
     }
 
     /**
@@ -577,6 +715,64 @@ EOD;
             throw new Exception('配置文件不完整');
         }
         return true;
+    }
+
+    /**
+     * 获取远程服务器
+     * @return  string
+     */
+    protected static function getServerUrl()
+    {
+        return config('api_url');
+    }
+
+    /**
+     * 获取请求对象
+     * @return Client
+     */
+    public static function getClient()
+    {
+        $options = [
+            'base_uri'        => self::getServerUrl(),
+            'timeout'         => 30,
+            'connect_timeout' => 30,
+            'verify'          => false,
+            'http_errors'     => false,
+            'headers'         => [
+                'X-REQUESTED-WITH' => 'XMLHttpRequest',
+                'Referer'          => dirname(request()->root(true)),
+                'User-Agent'       => 'YznAddon',
+            ],
+        ];
+        static $client;
+        if (empty($client)) {
+            $client = new Client($options);
+        }
+        return $client;
+    }
+
+    /**
+     * 发送请求
+     * @return array
+     * @throws Exception
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public static function sendRequest($url, $params = [], $method = 'POST')
+    {
+        $json = [];
+        try {
+            $client   = self::getClient();
+            $options  = strtoupper($method) == 'POST' ? ['form_params' => $params] : ['query' => $params];
+            $response = $client->request($method, $url, $options);
+            $body     = $response->getBody();
+            $content  = $body->getContents();
+            $json     = (array) json_decode($content, true);
+        } catch (TransferException $e) {
+            throw new Exception('网络错误!');
+        } catch (\Exception $e) {
+            throw new Exception('未知的数据格式!');
+        }
+        return $json;
     }
 
 }
