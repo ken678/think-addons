@@ -66,6 +66,16 @@ class Service
             $response = $client->get('/addon/download', ['query' => array_merge(['name' => $name], $extend)]);
             $body     = $response->getBody();
             $content  = $body->getContents();
+            if ($content == '' || stripos($content, '<title>系统发生错误</title>') !== false) {
+                throw new Exception("插件下载失败");
+            }
+            if (substr($content, 0, 1) === '{') {
+                $json = (array) json_decode($content, true);
+                if (isset($json['code'])) {
+                    //下载返回错误，抛出异常
+                    throw new AddonException($json['msg'], $json['code'], $json['data']);
+                }
+            };
         } catch (TransferException $e) {
             throw new Exception("插件下载失败");
         }
@@ -94,13 +104,13 @@ class Service
         $extend['domain'] = request()->host(true);
 
         // 远程下载插件
-        $tmpFile = Service::download($name, $extend);
+        $tmpFile = self::download($name, $extend);
 
         $addonDir = self::getAddonDir($name);
 
         try {
             // 解压插件压缩包到插件目录
-            Service::unzip($name);
+            self::unzip($name);
             // 检查插件是否完整
             self::check($name);
             if (!$force) {
@@ -406,6 +416,92 @@ class Service
     }
 
     /**
+     * 升级插件
+     *
+     * @param string $name   插件名称
+     * @param array  $extend 扩展参数
+     */
+    public static function upgrade($name, $extend = [])
+    {
+        $info = get_addon_info($name);
+        if ($info['status'] == 1) {
+            throw new Exception('请先禁用插件');
+        }
+        $config = get_addon_config($name);
+        if ($config) {
+            //备份配置
+        }
+
+        // 远程下载插件
+        $tmpFile = self::download($name, $extend);
+
+        // 备份插件文件
+        self::backup($name);
+
+        $addonDir = self::getAddonDir($name);
+
+        // 删除插件目录下的application和public
+        $files = self::getCheckDirs();
+        foreach ($files as $index => $file) {
+            @File::del_dir($addonDir . $file);
+        }
+
+        try {
+            // 解压插件
+            self::unzip($name);
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        } finally {
+            // 移除临时文件
+            @unlink($tmpFile);
+        }
+
+        if ($config) {
+            // 还原配置
+            set_addon_config($name, $config);
+        }
+
+        // 导入
+        self::runSQL($name);
+
+        // 执行升级脚本
+        try {
+            $addonName = ucfirst($name);
+            //创建临时类用于调用升级的方法
+            $sourceFile = $addonDir . $addonName . ".php";
+            $destFile   = $addonDir . $addonName . "Upgrade.php";
+
+            $classContent = str_replace("class {$addonName} extends", "class {$addonName}Upgrade extends", file_get_contents($sourceFile));
+
+            //创建临时的类文件
+            file_put_contents($destFile, $classContent);
+
+            $className = "\\addons\\" . $name . "\\" . $addonName . "Upgrade";
+            $addon     = new $className($name);
+
+            //调用升级的方法
+            if (method_exists($addon, "upgrade")) {
+                $addon->upgrade();
+            }
+
+            //移除临时文件
+            @unlink($destFile);
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        // 刷新
+        self::refresh();
+
+        //必须变更版本号
+        $info['version'] = isset($extend['version']) ? $extend['version'] : $info['version'];
+
+        $info['config']    = get_addon_config($name) ? 1 : 0;
+        $info['bootstrap'] = is_file(self::getBootstrapFile($name));
+        return $info;
+    }
+
+    /**
      * 解压插件
      *
      * @param string $name 插件名称
@@ -521,6 +617,31 @@ EOD;
                 }
             }
         }
+        return true;
+    }
+
+    /**
+     * 备份插件
+     * @param string $name 插件名称
+     * @return bool
+     * @throws Exception
+     */
+    public static function backup($name)
+    {
+        $addonsBackupDir = self::getAddonsBackupDir();
+        $file            = $addonsBackupDir . $name . '-backup-' . date("YmdHis") . '.zip';
+        $zipFile         = new ZipFile();
+        try {
+            $zipFile
+                ->addDirRecursive(self::getAddonDir($name))
+                ->saveAsFile($file)
+                ->close();
+        } catch (ZipException $e) {
+
+        } finally {
+            $zipFile->close();
+        }
+
         return true;
     }
 
