@@ -1,70 +1,6 @@
 <?php
 
 use think\facade\Config;
-use think\facade\Route;
-
-// 插件目录
-define('ADDON_PATH', ROOT_PATH . 'addons' . DS);
-
-// 定义路由
-Route::rule('addons/:addon/[:controller]/[:action]', "\\think\\addons\\Route@execute");
-
-// 闭包初始化行为
-Hook::add('app_init', function () {
-    //注册路由
-    $routeArr = (array) Config::get('addons.route');
-    $domains  = [];
-    $rules    = [];
-    $execute  = "\\think\\addons\\Route@execute?addon=%s&controller=%s&action=%s";
-    foreach ($routeArr as $k => $v) {
-        if (is_array($v)) {
-            $addon  = $v['addon'];
-            $domain = $v['domain'];
-            $drules = [];
-            foreach ($v['rule'] as $m => $n) {
-                list($addon, $controller, $action) = explode('/', $n);
-                $drules[$m]                        = sprintf($execute . '&indomain=1', $addon, $controller, $action);
-            }
-            $domains[$domain]                          = $drules ? $drules : [];
-            $domains[$domain][':controller/[:action]'] = sprintf($execute . '&indomain=1', $addon, ":controller", ":action");
-        } else {
-            if (!$v) {
-                continue;
-            }
-            list($addon, $controller, $action) = explode('/', $v);
-            $rules[$k]                         = sprintf($execute, $addon, $controller, $action);
-        }
-    }
-    Route::rules($rules);
-    if ($domains) {
-        foreach ($domains as $k => $v) {
-            Route::domain($k, $v);
-        }
-    }
-
-    // 获取系统配置
-    $hooks = Config::get('app_debug') ? [] : Cache::get('hooks', []);
-    if (empty($hooks)) {
-        $hooks = (array) Config::get('addons.hooks', []);
-        // 初始化钩子
-        foreach ($hooks as $key => $values) {
-            if (is_string($values)) {
-                $values = explode(',', $values);
-            } else {
-                $values = (array) $values;
-            }
-            $hooks[$key] = array_filter($values);
-        }
-        Cache::set('hooks', $hooks);
-    }
-    //如果在插件中有定义app_init，则直接执行
-    if (isset($hooks['app_init'])) {
-        foreach ($hooks['app_init'] as $k => $v) {
-            Hook::exec([$v, 'appInit']);
-        }
-    }
-    Hook::import($hooks, true);
-});
 
 /**
  * 处理插件钩子
@@ -138,7 +74,7 @@ function get_addon_autoload_config($truncate = false)
 
     // 读取插件目录及钩子列表
     $base = get_class_methods('\\think\\Addons');
-    $base = array_merge($base, ['install', 'uninstall', 'enable', 'disable','upgrade']);
+    $base = array_merge($base, ['install', 'uninstall', 'enable', 'disable', 'upgrade']);
 
     $addons = get_addon_list();
     foreach ($addons as $name => $addon) {
