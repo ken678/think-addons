@@ -12,6 +12,7 @@ namespace think;
 
 use app\common\middleware\CommonInit;
 use think\facade\Cache;
+use think\facade\Config;
 use think\facade\Env;
 use think\facade\Event;
 use think\facade\Route;
