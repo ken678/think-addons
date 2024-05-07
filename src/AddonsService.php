@@ -8,7 +8,7 @@
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-namespace think\addons;
+namespace think;
 
 use app\common\middleware\CommonInit;
 use think\facade\Cache;
@@ -16,9 +16,9 @@ use think\facade\Env;
 use think\facade\Event;
 use think\facade\Route;
 use think\helper\Str;
-use think\Service as BaseService;
+use think\Service;
 
-class Service extends BaseService
+class AddonsService extends Service
 {
     public function register()
     {
