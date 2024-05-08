@@ -897,7 +897,7 @@ EOD;
      */
     protected static function getDestAssetsDir($name)
     {
-        $assetsDir = app()->getRootPath() . str_replace("/", DS, "public/static/addons/{$name}/");
+        $assetsDir = app()->getRootPath() . str_replace("/", DS, "public/assets/addons/{$name}/");
         return $assetsDir;
     }
 

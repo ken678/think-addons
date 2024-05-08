@@ -14,10 +14,11 @@
 // +----------------------------------------------------------------------
 namespace think\addons;
 
+use app\common\controller\BaseController;
 use think\App;
 use think\facade\Config;
 
-class Controller extends \think\Controller
+class Controller extends BaseController
 {
     // 当前插件操作
     protected $addon      = null;
@@ -37,13 +38,9 @@ class Controller extends \think\Controller
         $this->request->filter('trim,strip_tags,htmlspecialchars');
         // 是否自动转换控制器和操作名
         $convert = Config::get('url_convert');
-
-        $filter = $convert ? 'strtolower' : 'trim';
+        $filter  = $convert ? 'strtolower' : 'trim';
         // 处理路由参数
-        // 处理路由参数
-        $param    = $this->request->param();
-        $dispatch = $this->request->dispatch()->getParam();
-        $var      = array_merge($param, $dispatch);
+        $var = $this->request->param();
 
         $addon      = isset($var['addon']) ? $var['addon'] : '';
         $controller = isset($var['controller']) ? $var['controller'] : '';
