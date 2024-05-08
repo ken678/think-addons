@@ -406,7 +406,7 @@ class Service
             // 上传失败获取错误信息
             throw new Exception($file->getError());
         }
-        $tmpFile = $addonsTempDir . $uploadFile->getSaveName();
+        $tmpFile = $uploadFile->getPathname();
         $info    = [];
         $zip     = new ZipFile();
         try {
@@ -874,7 +874,7 @@ EOD;
     protected static function getCheckDirs()
     {
         return [
-            'application',
+            'app',
             'public',
             'templates',
         ];
