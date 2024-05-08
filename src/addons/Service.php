@@ -16,16 +16,16 @@
 // +----------------------------------------------------------------------
 namespace think\addons;
 
-use app\common\library\Cache as CacheLib;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\TransferException;
 use PhpZip\Exception\ZipException;
 use PhpZip\ZipFile;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use think\Db;
 use think\Exception;
 use think\facade\Cache;
+use think\facade\Config;
+use think\facade\Db;
 use util\File;
 use util\Sql;
 
@@ -135,11 +135,6 @@ class Service
             if (class_exists($class)) {
                 $addon = new $class();
                 $addon->install();
-
-                $cache_list = property_exists($addon, 'cache_list') ? $addon->cache_list : [];
-                if ($cache_list) {
-                    CacheLib::installAddonCache($cache_list, $info);
-                }
             }
         } catch (Exception $e) {
             @File::del_dir($addonDir);
@@ -177,7 +172,7 @@ class Service
         if ($force) {
             $list = self::getGlobalFiles($name);
             foreach ($list as $k => $v) {
-                @unlink(ROOT_PATH . $v);
+                @unlink(app()->getRootPath() . $v);
             }
         }
         // 执行卸载脚本
@@ -186,11 +181,6 @@ class Service
             if (class_exists($class)) {
                 $addon = new $class();
                 $addon->uninstall();
-
-                $cache_list = property_exists($addon, 'cache_list') ? $addon->cache_list : [];
-                if ($cache_list) {
-                    CacheLib::deleteCacheAddon($info['name']);
-                }
             };
         } catch (Exception $e) {
             throw new Exception($e->getMessage());
@@ -218,13 +208,13 @@ class Service
         }
 
         //备份冲突文件
-        if (config('backup_global_files')) {
+        if (config::get('yzn.backup_global_files')) {
             $conflictFiles = self::getGlobalFiles($name, true);
             if ($conflictFiles) {
                 $zip = new ZipFile();
                 try {
                     foreach ($conflictFiles as $k => $v) {
-                        $zip->addFile(ROOT_PATH . $v, $v);
+                        $zip->addFile(app()->getRootPath() . $v, $v);
                     }
                     $addonsBackupDir = self::getAddonsBackupDir();
                     $zip->saveAsFile($addonsBackupDir . $name . "-conflict-enable-" . date("YmdHis") . ".zip");
@@ -253,12 +243,12 @@ class Service
         // 复制application到全局
         foreach (self::getCheckDirs() as $k => $dir) {
             if (is_dir($addonDir . $dir)) {
-                File::copy_dir($addonDir . $dir, ROOT_PATH . $dir);
+                File::copy_dir($addonDir . $dir, app()->getRootPath() . $dir);
             }
         }
 
         //插件纯净模式时将插件目录下的application、public和assets删除
-        if (config('addon_pure_mode')) {
+        if (config::get('yzn.addon_pure_mode')) {
             // 删除插件目录已复制到全局的文件
             @File::del_dir($sourceAssetsDir);
             foreach (self::getCheckDirs() as $k => $dir) {
@@ -304,14 +294,14 @@ class Service
             self::noconflict($name);
         }
 
-        if (config('backup_global_files')) {
+        if (config::get('yzn.backup_global_files')) {
             //仅备份修改过的文件
             $conflictFiles = self::getGlobalFiles($name, true);
             if ($conflictFiles) {
                 $zip = new ZipFile();
                 try {
                     foreach ($conflictFiles as $k => $v) {
-                        $zip->addFile(ROOT_PATH . $v, $v);
+                        $zip->addFile(app()->getRootPath() . $v, $v);
                     }
                     $addonsBackupDir = self::getAddonsBackupDir();
                     $zip->saveAsFile($addonsBackupDir . $name . "-conflict-disable-" . date("YmdHis") . ".zip");
@@ -334,13 +324,13 @@ class Service
 
         //插件纯净模式时将原有的文件复制回插件目录
         //当无法获取全局文件列表时也将列表复制回插件目录
-        if (config('addon_pure_mode') || !$list) {
+        if (config::get('yzn.addon_pure_mode') || !$list) {
             if ($config && isset($config['files']) && is_array($config['files'])) {
                 foreach ($config['files'] as $index => $item) {
                     //避免切换不同服务器后导致路径不一致
                     $item = str_replace(['/', '\\'], DS, $item);
                     //插件资源目录，无需重复复制
-                    if (stripos($item, str_replace(ROOT_PATH, '', $destAssetsDir)) === 0) {
+                    if (stripos($item, str_replace(app()->getRootPath(), '', $destAssetsDir)) === 0) {
                         continue;
                     }
                     //检查目录是否存在，不存在则创建
@@ -348,8 +338,8 @@ class Service
                     if (!is_dir($itemBaseDir)) {
                         @mkdir($itemBaseDir, 0755, true);
                     }
-                    if (is_file(ROOT_PATH . $item)) {
-                        @copy(ROOT_PATH . $item, $addonDir . $item);
+                    if (is_file(app()->getRootPath() . $item)) {
+                        @copy(app()->getRootPath() . $item, $addonDir . $item);
                     }
                 }
                 $list = $config['files'];
@@ -362,7 +352,7 @@ class Service
 
         $dirs = [];
         foreach ($list as $k => $v) {
-            $file   = ROOT_PATH . $v;
+            $file   = app()->getRootPath() . $v;
             $dirs[] = dirname($file);
             @unlink($file);
         }
@@ -461,11 +451,6 @@ class Service
                 if (class_exists($class)) {
                     $addon = new $class();
                     $addon->install();
-
-                    $cache_list = property_exists($addon, 'cache_list') ? $addon->cache_list : [];
-                    if ($cache_list) {
-                        CacheLib::installAddonCache($cache_list, $info);
-                    }
                 }
             } catch (Exception $e) {
                 @File::del_dir($newAddonDir);
@@ -630,12 +615,11 @@ class Service
                 $bootstrapArr[] = file_get_contents($bootstrapFile);
             }
         }
-        $addonsFile = ROOT_PATH . str_replace("/", DS, "public/static/libs/layui_exts/addons.js");
+        $addonsFile = app()->getRootPath() . str_replace("/", DS, "public/assets/js/addons.js");
         if ($handle = fopen($addonsFile, 'w')) {
             $tpl = <<<EOD
-layui.define([], function(exports) {
+define([], function () {
     {__JS__}
-    exports('addons', '');
 });
 EOD;
             fwrite($handle, str_replace("{__JS__}", implode("\n", $bootstrapArr), $tpl));
@@ -644,8 +628,8 @@ EOD;
             throw new Exception("文件addons.js没有写入权限");
         }
 
-        Cache::rm("addons");
-        Cache::rm("hooks");
+        Cache::delete("addons");
+        Cache::delete("hooks");
 
         $file = self::getExtraAddonsFile();
 
@@ -807,12 +791,12 @@ EOD;
                     $filePath = $fileinfo->getPathName();
                     //如果名称为assets需要做特殊处理
                     if ($dirName === 'assets') {
-                        $path = str_replace(ROOT_PATH, '', $assetDir) . str_replace($addonDir . $dirName . DS, '', $filePath);
+                        $path = str_replace(app()->getRootPath(), '', $assetDir) . str_replace($addonDir . $dirName . DS, '', $filePath);
                     } else {
                         $path = str_replace($addonDir, '', $filePath);
                     }
                     if ($onlyconflict) {
-                        $destPath = ROOT_PATH . $path;
+                        $destPath = app()->getRootPath() . $path;
                         if (is_file($destPath)) {
                             if (filesize($filePath) != filesize($destPath) || md5_file($filePath) != md5_file($destPath)) {
                                 $list[] = $path;
@@ -833,7 +817,7 @@ EOD;
      */
     public static function getAddonsBackupDir()
     {
-        $dir = ROOT_PATH . 'runtime' . DS . 'addons' . DS;
+        $dir = app()->getRuntimePath() . 'addons' . DS;
         if (!is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
@@ -846,7 +830,7 @@ EOD;
      */
     public static function getExtraAddonsFile()
     {
-        return ROOT_PATH . 'config' . DS . 'addons.php';
+        return app()->getConfigPath() . 'addons.php';
     }
 
     /**
@@ -906,7 +890,7 @@ EOD;
      */
     protected static function getDestAssetsDir($name)
     {
-        $assetsDir = ROOT_PATH . str_replace("/", DS, "public/static/addons/{$name}/");
+        $assetsDir = app()->getRootPath() . str_replace("/", DS, "public/static/addons/{$name}/");
         return $assetsDir;
     }
 
@@ -938,7 +922,7 @@ EOD;
      */
     protected static function getServerUrl()
     {
-        return config('api_url');
+        return config('yzn.api_url');
     }
 
     /**
