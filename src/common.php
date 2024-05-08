@@ -64,7 +64,7 @@ function get_addon_list()
 function get_addon_autoload_config($truncate = false)
 {
     // 读取addons的配置
-    $config = (array) Config::get('addons.');
+    $config = (array) Config::get('addons');
     if ($truncate) {
         // 清空手动配置的钩子
         $config['hooks'] = [];
@@ -244,7 +244,7 @@ function set_addon_info($name, $array)
         fwrite($handle, implode("\n", $res) . "\n");
         fclose($handle);
         //清空当前配置缓存
-        Config::set('addoninfo' . $name, null);
+        Config::set([$name => null], 'addoninfo');
     } else {
         throw new Exception('文件没有写入权限');
     }
