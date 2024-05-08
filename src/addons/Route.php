@@ -4,7 +4,7 @@ namespace think\addons;
 
 use think\exception\HttpException;
 use think\facade\Config;
-use think\facade\Hook;
+use think\facade\Event;
 use think\facade\Request;
 
 /**
@@ -29,7 +29,7 @@ class Route
         $controller = $controller ? trim(call_user_func($filter, $controller)) : 'index';
         $action     = $action ? trim(call_user_func($filter, $action)) : 'index';
 
-        Hook::listen('addon_begin', $request);
+        Event::trigger('addon_begin', $request);
         if (!empty($addon) && !empty($controller) && !empty($action)) {
             $info = get_addon_info($addon);
             if (!$info) {
@@ -43,7 +43,7 @@ class Route
             $request->setController($controller)->setAction($action);
 
             // 监听addon_module_init
-            Hook::listen('addon_module_init', $request);
+            Event::trigger('addon_module_init', $request);
 
             $class = get_addon_class($addon, 'controller', $controller);
             if (!$class) {
@@ -64,7 +64,7 @@ class Route
                 // 操作不存在
                 throw new HttpException(404, '插件控制器方法' . get_class($instance) . '->' . $action . '()未找到');
             }
-            Hook::listen('addon_action_begin', $call);
+            Event::trigger('addon_action_begin', $call);
 
             return call_user_func_array($call, $vars);
         } else {
