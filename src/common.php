@@ -318,7 +318,7 @@ function get_addon_tables($name)
     if (is_file($sqlFile)) {
         preg_match_all($regex, file_get_contents($sqlFile), $matches);
         if ($matches && isset($matches[2]) && $matches[2]) {
-            $prefix = config('database.prefix');
+            $prefix = Config::get('database.connections.mysql.prefix');
             $tables = array_map(function ($item) use ($prefix) {
                 return str_replace("__PREFIX__", $prefix, $item);
             }, $matches[2]);

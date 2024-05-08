@@ -671,7 +671,7 @@ EOD;
             $sql_statement = Sql::getSqlFromFile($sql_file);
             if (!empty($sql_statement)) {
                 foreach ($sql_statement as $value) {
-                    $value = str_ireplace('__PREFIX__', config('database.prefix'), $value);
+                    $value = str_ireplace('__PREFIX__', Config::get('database.connections.mysql.prefix'), $value);
                     $value = str_ireplace('INSERT INTO ', 'INSERT IGNORE INTO ', $value);
                     try {
                         Db::execute($value);

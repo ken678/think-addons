@@ -17,12 +17,12 @@
 namespace think;
 
 use think\facade\Config as ThinkConfig;
-use think\View;
+use think\facade\View;
 
 abstract class Addons
 {
-    protected $view    = null;
-    public $addon_path = '';
+    protected $view     = null;
+    public $addons_path = '';
 
     // 当前插件标识
     protected $addonName = '';
@@ -38,13 +38,12 @@ abstract class Addons
         $this->addonName = $name;
 
         // 获取当前插件目录
-        $this->addon_path = ADDON_PATH . $this->addonName . DS;
+        $this->addons_path = ADDON_PATH . $this->addonName . DS;
 
         // 初始化视图模型
-        $config['view_path'] = $this->addon_path;
-        $config              = array_merge(ThinkConfig::get('template.'), $config);
-        $this->view          = new View();
-        $this->view          = $this->view->init($config);
+        $config     = ['view_path' => $this->addons_path];
+        $config     = array_merge(ThinkConfig::get('view'), $config);
+        $this->view = View::instance($config);
     }
 
     /**
@@ -86,12 +85,12 @@ abstract class Addons
             }
         }
         $info      = [];
-        $info_file = $this->addon_path . 'info.ini';
+        $info_file = $this->addons_path . 'info.ini';
         if (is_file($info_file)) {
             $info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
             //$info['url'] = addon_url($name);
         }
-        ThinkConfig::set($this->infoRange . $name, $info);
+        ThinkConfig::set([$name => $info], $this->infoRange);
         return $info ? $info : [];
     }
 
@@ -128,7 +127,7 @@ abstract class Addons
             }
         }
         $config     = [];
-        $configFile = $this->addon_path . 'config.php';
+        $configFile = $this->addons_path . 'config.php';
         if (is_file($configFile)) {
             $configArr = include $configFile;
             if (is_array($configArr)) {
@@ -138,7 +137,7 @@ abstract class Addons
                 unset($configArr);
             }
         }
-        ThinkConfig::set($this->configRange . $name, $config);
+        ThinkConfig::set([$name => $config], $this->configRange);
         return $config;
     }
 
@@ -155,7 +154,7 @@ abstract class Addons
         }
         $config = $this->getAddonConfig($name);
         $config = array_merge($config, $value);
-        ThinkConfig::set($this->configRange . $name, $config);
+        ThinkConfig::set([$name => $config], $this->configRange);
         return $config;
     }
 
@@ -172,7 +171,7 @@ abstract class Addons
         if (empty($name)) {
             $name = $this->getName();
         }
-        $configFile = $this->addon_path . 'config.php';
+        $configFile = $this->addons_path . 'config.php';
         if (is_file($configFile)) {
             $fullConfigArr = include $configFile;
         }
@@ -192,7 +191,7 @@ abstract class Addons
         }
         $info = $this->getInfo($name);
         $info = array_merge($info, $value);
-        ThinkConfig::set($this->infoRange . $name, $info);
+        ThinkConfig::set([$name => $info], $this->infoRange);
         return $info;
     }
 
