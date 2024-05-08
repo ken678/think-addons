@@ -394,7 +394,14 @@ class Service
         if (!$file || !$file instanceof \think\File) {
             throw new Exception('没有文件上传或服务器上传限制');
         }
-        $uploadFile = $file->rule('uniqid')->validate(['size' => 102400000, 'ext' => 'zip'])->move($addonsTempDir);
+        $validate = validate(
+            ['zip' => 'filesize:102400000|fileExt:zip,fastaddon'], [], false, false
+        );
+        if (!$validate->check(['zip' => $file])) {
+            // 文件验证错误
+            throw new Exception($validate->getError());
+        }
+        $uploadFile = $file->move($addonsTempDir, $file->hashName('md5'));
         if (!$uploadFile) {
             // 上传失败获取错误信息
             throw new Exception($file->getError());
