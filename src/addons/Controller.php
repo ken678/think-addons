@@ -17,6 +17,7 @@ namespace think\addons;
 use app\common\controller\BaseController;
 use think\App;
 use think\facade\Config;
+use think\facade\Cookie;
 
 class Controller extends BaseController
 {
@@ -24,6 +25,24 @@ class Controller extends BaseController
     protected $addon      = null;
     protected $controller = null;
     protected $action     = null;
+
+    /**
+     * 无需登录的方法,同时也就不需要鉴权了
+     * @var array
+     */
+    protected $noNeedLogin = ['*'];
+
+    /**
+     * 无需鉴权的方法,但需要登录
+     * @var array
+     */
+    protected $noNeedRight = ['*'];
+
+    /**
+     * 权限Auth
+     * @var Auth
+     */
+    protected $auth = null;
 
     /**
      * 架构函数
@@ -49,6 +68,9 @@ class Controller extends BaseController
         $this->addon      = $addon ? call_user_func($filter, $addon) : '';
         $this->controller = $controller ? call_user_func($filter, $controller) : 'index';
         $this->action     = $action ? call_user_func($filter, $action) : 'index';
+
+        Config::set(['view_path' => ADDON_PATH . $this->addon . DS . 'view' . DS], 'view');
+
         // 父类的调用必须放在设置模板路径之后
         parent::__construct($app);
     }
@@ -59,19 +81,74 @@ class Controller extends BaseController
         if (function_exists("check_ip_allowed")) {
             check_ip_allowed();
         }
-        $site = Config::get("site.");
+
+        // 渲染配置到视图中
+        $config = get_addon_config($this->addon);
+        $this->assign("config", $config);
+
+        // 设置替换字符串
+        $cdnurl = Config::get('site.cdnurl');
+
+        $this->auth = Auth::instance();
+
+        // token
+        $token = $this->request->server('HTTP_TOKEN', $this->request->request('token', Cookie::get('token')));
+
+        $path = 'addons/' . $this->addon . '/' . str_replace('.', '/', $this->controller) . '/' . $this->action;
+        // 设置当前请求的URI
+        $this->auth->setRequestUri($path);
+        // 检测是否需要验证登录
+        if (!$this->auth->match($this->noNeedLogin)) {
+            //初始化
+            $this->auth->init($token);
+            //检测是否登录
+            if (!$this->auth->isLogin()) {
+                $this->error('请登录后操作', 'index/user/login');
+            }
+            // 判断是否需要验证权限
+            if (!$this->auth->match($this->noNeedRight)) {
+                // 判断控制器和方法判断是否有对应权限
+                if (!$this->auth->check($path)) {
+                    $this->error('你没有权限访问');
+                }
+            }
+        } else {
+            // 如果有传递token才验证是否登录状态
+            if ($token) {
+                $this->auth->init($token);
+            }
+        }
+
+        $this->assign('user', $this->auth->getUser());
+
+        $site = Config::get("site");
         $this->assign('site', $site);
     }
 
-    protected function fetch($template = '', $vars = [], $config = [], $renderContent = false)
+    /**
+     * 加载模板输出.
+     *
+     * @param string $template 模板文件名
+     * @param array  $vars     模板输出变量
+     * @param array  $replace  模板替换
+     * @param array  $config   模板参数
+     *
+     * @return mixed
+     */
+    protected function fetch($template = '', $vars = [], $replace = [], $config = [])
     {
-        $Theme        = empty(Config::get('theme')) ? 'default' : Config::get('theme');
-        $viewPath     = TEMPLATE_PATH . $Theme . DIRECTORY_SEPARATOR . $this->addon . DIRECTORY_SEPARATOR;
-        $templateFile = $viewPath . trim($template, '/') . '.' . Config::get('template.view_suffix');
-        if ('default' !== $Theme && !is_file($templateFile)) {
-            $viewPath = TEMPLATE_PATH . 'default' . DIRECTORY_SEPARATOR . $this->request->module() . DIRECTORY_SEPARATOR;
+        $controller = parse_name($this->controller);
+        if ('think' == strtolower(Config::get('template.type')) && $controller && 0 !== strpos($template, '/')) {
+            $depr     = Config::get('template.view_depr');
+            $template = str_replace(['/', ':'], $depr, $template);
+            if ('' == $template) {
+                // 如果模板文件名为空 按照默认规则定位
+                $template = str_replace('.', DS, $controller) . $depr . $this->action;
+            } elseif (false === strpos($template, $depr)) {
+                $template = str_replace('.', DS, $controller) . $depr . $template;
+            }
         }
-        $this->view->config('view_path', $viewPath);
-        return $this->view->fetch($template, $vars, $config, $renderContent);
+
+        return View::fetch($template, $vars);
     }
 }
