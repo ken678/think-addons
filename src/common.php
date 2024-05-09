@@ -13,9 +13,9 @@ use think\facade\Config;
 function hook($hook, $params = [], $is_return = false, $once = false)
 {
     if ($is_return == true) {
-        return \think\facade\Hook::listen($hook, $params, $once);
+        return \think\facade\Event::trigger($hook, $params, $once);
     }
-    \think\facade\Hook::listen($hook, $params, $once);
+    \think\facade\Event::trigger($hook, $params, $once);
 }
 
 /**
