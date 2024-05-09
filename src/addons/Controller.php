@@ -95,9 +95,6 @@ class Controller extends BaseController
         // token
         $token = $this->request->server('HTTP_TOKEN', (string) $this->request->request('token', Cookie::get('token')));
 
-        $path = 'addons/' . $this->addon . '/' . str_replace('.', '/', $this->controller) . '/' . $this->action;
-        // 设置当前请求的URI
-        $this->auth->setRequestUri($path);
         // 检测是否需要验证登录
         if (!$this->auth->match($this->noNeedLogin)) {
             //初始化
@@ -109,9 +106,9 @@ class Controller extends BaseController
             // 判断是否需要验证权限
             if (!$this->auth->match($this->noNeedRight)) {
                 // 判断控制器和方法判断是否有对应权限
-                if (!$this->auth->check($path)) {
-                    $this->error('你没有权限访问');
-                }
+                /*if (!$this->auth->check($path)) {
+            $this->error('你没有权限访问');
+            }*/
             }
         } else {
             // 如果有传递token才验证是否登录状态
