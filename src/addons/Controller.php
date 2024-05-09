@@ -15,6 +15,7 @@
 namespace think\addons;
 
 use app\common\controller\BaseController;
+use app\common\library\Auth;
 use think\App;
 use think\facade\Config;
 use think\facade\Cookie;
@@ -92,7 +93,7 @@ class Controller extends BaseController
         $this->auth = Auth::instance();
 
         // token
-        $token = $this->request->server('HTTP_TOKEN', $this->request->request('token', Cookie::get('token')));
+        $token = $this->request->server('HTTP_TOKEN', (string) $this->request->request('token', Cookie::get('token')));
 
         $path = 'addons/' . $this->addon . '/' . str_replace('.', '/', $this->controller) . '/' . $this->action;
         // 设置当前请求的URI
