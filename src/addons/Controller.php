@@ -95,6 +95,9 @@ class Controller extends BaseController
         // token
         $token = $this->request->server('HTTP_TOKEN', (string) $this->request->request('token', Cookie::get('token')));
 
+        $path = 'addons/' . $this->addon . '/' . str_replace('.', '/', $this->controller) . '/' . $this->action;
+        // 设置当前请求的URI
+        $this->auth->setRequestUri($path);
         // 检测是否需要验证登录
         if (!$this->auth->match($this->noNeedLogin)) {
             //初始化
