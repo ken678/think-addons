@@ -104,7 +104,7 @@ class Controller extends BaseController
             $this->auth->init($token);
             //检测是否登录
             if (!$this->auth->isLogin()) {
-                $this->error('请登录后操作', 'user/login');
+                $this->error('请登录后操作', 'index/user/login');
             }
             // 判断是否需要验证权限
             if (!$this->auth->match($this->noNeedRight)) {
@@ -117,7 +117,7 @@ class Controller extends BaseController
             if ($this->auth->vip) {
                 if ($this->auth->overduedate < time()) {
                     $this->auth->logout();
-                    $this->error('VIP已过期，请重新登录', 'user/login');
+                    $this->error('VIP已过期，请重新登录', 'index/user/login');
                 }
             }
         } else {
