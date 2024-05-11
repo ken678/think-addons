@@ -69,15 +69,28 @@ function get_addon_autoload_config($truncate = false)
         // 清空手动配置的钩子
         $config['hooks'] = [];
     }
-    $route  = [];
-    $domain = [];
 
+    // 伪静态优先级
+    $priority = isset($config['priority']) && $config['priority'] ? is_array($config['priority']) ? $config['priority'] : explode(',', $config['priority']) : [];
+
+    $route = [];
     // 读取插件目录及钩子列表
     $base = get_class_methods('\\think\\Addons');
     $base = array_merge($base, ['install', 'uninstall', 'enable', 'disable', 'upgrade']);
 
     $addons = get_addon_list();
-    foreach ($addons as $name => $addon) {
+    $domain = [];
+
+    $priority = array_merge($priority, array_keys($addons));
+
+    $orderedAddons = [];
+    foreach ($priority as $key) {
+        if (!isset($addons[$key])) {
+            continue;
+        }
+        $orderedAddons[$key] = $addons[$key];
+    }
+    foreach ($orderedAddons as $name => $addon) {
         if (0 >= $addon['status']) {
             continue;
         }
@@ -96,7 +109,7 @@ function get_addon_autoload_config($truncate = false)
                 $config['hooks'][$hook] = explode(',', $config['hooks'][$hook]);
             }
             if (!in_array($name, $config['hooks'][$hook])) {
-                $config['hooks'][$hook][] = get_addon_class($name);
+                $config['hooks'][$hook][] = $name;
             }
         }
         $conf = get_addon_config($addon['name']);
