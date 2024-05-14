@@ -57,6 +57,40 @@ function get_addon_list()
 }
 
 /**
+ * 获得插件内的服务类.
+ *
+ * @return array
+ */
+function get_addon_service()
+{
+    $addons = get_addon_list();
+    $list   = [];
+    foreach ($addons as $name => $addon) {
+        if (!$addon['status']) {
+            continue;
+        }
+        $addonServiceDir = ADDON_PATH . $name . DS . 'service' . DS;
+
+        if (!is_dir($addonServiceDir)) {
+            continue;
+        }
+
+        $service_files = is_dir($addonServiceDir) ? scandir($addonServiceDir) : [];
+        $namespace     = 'addons\\' . $name . '\\service\\';
+        foreach ($service_files as $file) {
+            if (strpos($file, '.php')) {
+                $className = str_replace('.php', '', $file);
+                $class     = $namespace . $className;
+                if (class_exists($class)) {
+                    $list[] = $class;
+                }
+            }
+        }
+    }
+    return $list;
+}
+
+/**
  * 获得插件自动加载的配置.
  * @param  bool  $truncate  是否清除手动配置的钩子
  * @return array
@@ -129,8 +163,9 @@ function get_addon_autoload_config($truncate = false)
             }
         }
     }
-    $config['route'] = $route;
-    $config['route'] = array_merge($config['route'], $domain);
+    $config['service'] = get_addon_service();
+    $config['route']   = $route;
+    $config['route']   = array_merge($config['route'], $domain);
     return $config;
 }
 
