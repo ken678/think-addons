@@ -48,7 +48,7 @@ abstract class Addons
         $this->addon_config = "addon_{$this->addonName}_config";
         $this->addon_info   = "addon_{$this->addonName}_info";
 
-        $this->view = View::instance();
+        $this->view = clone View::instance();
         $this->view->config(['view_path' => $this->addons_path]);
 
         // 控制器初始化
