@@ -210,7 +210,7 @@ function get_addon_info($name)
     if (!$addon) {
         return [];
     }
-    return $addon->getInfo($name);
+    return $addon->getInfo();
 }
 
 /**
@@ -225,7 +225,7 @@ function get_addon_fullconfig($name)
         return [];
     }
 
-    return $addon->getFullConfig($name);
+    return $addon->getFullConfig();
 }
 
 /**
@@ -239,7 +239,7 @@ function get_addon_config($name)
     if (!$addon) {
         return [];
     }
-    return $addon->getAddonConfig($name);
+    return $addon->getAddonConfig();
 }
 
 /**
@@ -273,7 +273,7 @@ function set_addon_info($name, $array)
 {
     $file  = ADDON_PATH . $name . DS . 'info.ini';
     $addon = get_addon_instance($name);
-    $array = $addon->setInfo($name, $array);
+    $array = $addon->setInfo($array);
     if (!isset($array['name']) || !isset($array['title']) || !isset($array['version'])) {
         throw new Exception('插件配置写入失败');
     }
@@ -311,7 +311,7 @@ function set_addon_info($name, $array)
 function set_addon_config($name, $config, $writefile = true)
 {
     $addon = get_addon_instance($name);
-    $addon->setAddonConfig($name, $config);
+    $addon->setAddonConfig($config);
     $fullconfig = get_addon_fullconfig($name);
     foreach ($fullconfig as $k => &$v) {
         if (isset($config[$v['name']])) {
