@@ -11,8 +11,6 @@
 
 // +----------------------------------------------------------------------
 // | 插件基类 插件需要继承此类
-// | https://github.com/5ini99/think-addons
-// | https://github.com/karsonzhang/fastadmin-addons
 // +----------------------------------------------------------------------
 namespace think;
 
@@ -21,16 +19,23 @@ use think\facade\View;
 
 abstract class Addons
 {
-    protected $view     = null;
+    // 视图实例对象
+    protected $view = null;
+    // 当前错误信息
+    protected $error;
+    // 插件目录
     public $addons_path = '';
-
     // 当前插件标识
     protected $addonName = '';
-    // 插件配置作用域
-    protected $configRange = 'addonconfig';
-    // 插件信息作用域
-    protected $infoRange = 'addoninfo';
+    // 插件配置
+    protected $addon_config;
+    // 插件信息
+    protected $addon_info;
 
+    /**
+     * 架构函数
+     * @access public
+     */
     public function __construct($name = null)
     {
         $name = is_null($name) ? $this->getName() : $name;
@@ -40,10 +45,16 @@ abstract class Addons
         // 获取当前插件目录
         $this->addons_path = ADDON_PATH . $this->addonName . DS;
 
-        // 初始化视图模型
-        $config     = ['view_path' => $this->addons_path];
-        $config     = array_merge(ThinkConfig::get('view'), $config);
-        $this->view = View::instance($config);
+        $this->addon_config = "addon_{$this->addonName}_config";
+        $this->addon_info   = "addon_{$this->addonName}_info";
+
+        $this->view = View::instance();
+        $this->view->config(['view_path' => $this->addons_path]);
+
+        // 控制器初始化
+        if (method_exists($this, 'initialize')) {
+            $this->initialize();
+        }
     }
 
     /**
@@ -73,25 +84,34 @@ abstract class Addons
      * @param string $name
      * @return array
      */
-    final public function getInfo($name = '', $force = false)
+    final public function getInfo()
     {
-        if (empty($name)) {
-            $name = $this->getName();
+        $info = ThinkConfig::get($this->addon_info, []);
+        if ($info) {
+            return $info;
         }
-        if (!$force) {
-            $info = ThinkConfig::get($this->infoRange . $name);
-            if ($info) {
-                return $info;
-            }
-        }
+
         $info      = [];
         $info_file = $this->addons_path . 'info.ini';
         if (is_file($info_file)) {
             $info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
             //$info['url'] = addon_url($name);
         }
-        ThinkConfig::set([$name => $info], $this->infoRange);
+        ThinkConfig::set($info, $this->addon_info);
         return $info ? $info : [];
+    }
+
+    /**
+     * 设置插件信息数据.
+     * @param array $value
+     * @return array
+     */
+    final public function setInfo($value = [])
+    {
+        $info = $this->getInfo();
+        $info = array_merge($info, $value);
+        ThinkConfig::set($info, $this->addon_info);
+        return $info;
     }
 
     /**
@@ -111,20 +131,13 @@ abstract class Addons
     }
 
     /**
-     * @title 获取插件的配置数组
-     * @param string $name 可选模块名
-     * @return array|mixed|null
+     * 获取插件的配置数组
      */
-    final public function getAddonConfig($name = '', $force = false)
+    final public function getAddonConfig()
     {
-        if (empty($name)) {
-            $name = $this->getName();
-        }
-        if (!$force) {
-            $config = ThinkConfig::get($this->configRange . $name);
-            if ($config) {
-                return $config;
-            }
+        $config = ThinkConfig::get($this->addon_config, []);
+        if ($config) {
+            return $config;
         }
         $config     = [];
         $configFile = $this->addons_path . 'config.php';
@@ -137,7 +150,7 @@ abstract class Addons
                 unset($configArr);
             }
         }
-        ThinkConfig::set([$name => $config], $this->configRange);
+        ThinkConfig::set($config, $this->addon_config);
         return $config;
     }
 
@@ -147,52 +160,26 @@ abstract class Addons
      * @param array $value
      * @return array
      */
-    final public function setAddonConfig($name = '', $value = [])
+    final public function setAddonConfig($value = [])
     {
-        if (empty($name)) {
-            $name = $this->getName();
-        }
-        $config = $this->getAddonConfig($name);
+        $config = $this->getAddonConfig();
         $config = array_merge($config, $value);
-        ThinkConfig::set([$name => $config], $this->configRange);
+        ThinkConfig::set($config, $this->addon_config);
         return $config;
     }
 
     /**
      * 获取完整配置列表.
-     *
-     * @param string $name
-     *
      * @return array
      */
-    final public function getFullConfig($name = '')
+    final public function getFullConfig()
     {
         $fullConfigArr = [];
-        if (empty($name)) {
-            $name = $this->getName();
-        }
-        $configFile = $this->addons_path . 'config.php';
+        $configFile    = $this->addons_path . 'config.php';
         if (is_file($configFile)) {
             $fullConfigArr = include $configFile;
         }
         return $fullConfigArr;
-    }
-
-    /**
-     * 设置插件信息数据.
-     * @param $name
-     * @param array $value
-     * @return array
-     */
-    final public function setInfo($name = '', $value = [])
-    {
-        if (empty($name)) {
-            $name = $this->getName();
-        }
-        $info = $this->getInfo($name);
-        $info = array_merge($info, $value);
-        ThinkConfig::set([$name => $info], $this->infoRange);
-        return $info;
     }
 
     /**
@@ -212,18 +199,13 @@ abstract class Addons
      * @access public
      * @param string $template 模板文件名或者内容
      * @param array $vars 模板输出变量
-     * @param array $replace 替换内容
-     * @param array $config 模板参数
      */
-    public function fetch($template = '', $vars = [], $replace = [], $config = [])
+    public function fetch($template = '', $vars = [])
     {
         if (!is_file($template)) {
             $template = '/' . $template;
         }
-        // 关闭模板布局
-        $this->view->engine->layout(false);
-
-        echo $this->view->fetch($template, $vars, $replace, $config);
+        echo $this->view->fetch($template, $vars);
     }
 
     /**
@@ -235,26 +217,18 @@ abstract class Addons
      * @param array $config 模板参数
      * @return mixed
      */
-    public function display($content, $vars = [], $replace = [], $config = [])
+    public function display($content, $vars = [])
     {
-        // 关闭模板布局
-        $this->view->engine->layout(false);
-
-        echo $this->view->display($content, $vars, $replace, $config);
+        echo $this->view->display($content, $vars);
     }
+
     /**
-     * 渲染内容输出
-     * @access public
-     * @param string $content 内容
-     * @param array $vars 模板输出变量
+     * 获取当前错误信息
      * @return mixed
      */
-    public function show($content, $vars = [])
+    public function getError()
     {
-        // 关闭模板布局
-        $this->view->engine->layout(false);
-
-        echo $this->view->fetch($content, $vars, [], [], true);
+        return $this->error;
     }
 
     //必须实现安装
