@@ -33,6 +33,8 @@ class AddonsService extends Service
         $this->addon_route();
         //注册插件事件
         $this->addon_event();
+        //插件初始化
+        Event::trigger('addon_init');
     }
 
     /**

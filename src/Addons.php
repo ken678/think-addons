@@ -14,7 +14,7 @@
 // +----------------------------------------------------------------------
 namespace think;
 
-use think\facade\Config as ThinkConfig;
+use think\facade\Config;
 use think\facade\View;
 
 abstract class Addons
@@ -86,7 +86,7 @@ abstract class Addons
      */
     final public function getInfo()
     {
-        $info = ThinkConfig::get($this->addon_info, []);
+        $info = Config::get($this->addon_info, []);
         if ($info) {
             return $info;
         }
@@ -97,7 +97,7 @@ abstract class Addons
             $info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
             //$info['url'] = addon_url($name);
         }
-        ThinkConfig::set($info, $this->addon_info);
+        Config::set($info, $this->addon_info);
         return $info ? $info : [];
     }
 
@@ -110,7 +110,7 @@ abstract class Addons
     {
         $info = $this->getInfo();
         $info = array_merge($info, $value);
-        ThinkConfig::set($info, $this->addon_info);
+        Config::set($info, $this->addon_info);
         return $info;
     }
 
@@ -135,7 +135,7 @@ abstract class Addons
      */
     final public function getAddonConfig()
     {
-        $config = ThinkConfig::get($this->addon_config, []);
+        $config = Config::get($this->addon_config, []);
         if ($config) {
             return $config;
         }
@@ -150,7 +150,7 @@ abstract class Addons
                 unset($configArr);
             }
         }
-        ThinkConfig::set($config, $this->addon_config);
+        Config::set($config, $this->addon_config);
         return $config;
     }
 
@@ -164,7 +164,7 @@ abstract class Addons
     {
         $config = $this->getAddonConfig();
         $config = array_merge($config, $value);
-        ThinkConfig::set($config, $this->addon_config);
+        Config::set($config, $this->addon_config);
         return $config;
     }
 
