@@ -19,6 +19,7 @@ use app\common\library\Auth;
 use think\App;
 use think\facade\Config;
 use think\facade\Cookie;
+use think\facade\View;
 
 class Controller extends BaseController
 {
