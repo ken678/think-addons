@@ -93,6 +93,10 @@ class Controller extends BaseController
 
         $this->auth = Auth::instance();
 
+        $tpl_replace_string              = Config::get('view.tpl_replace_string');
+        $tpl_replace_string['__ADDON__'] = $cdnurl . "/assets/addons/" . $this->addon;
+        Config::set(['tpl_replace_string' => $tpl_replace_string], 'view');
+
         // token
         $token = $this->request->server('HTTP_TOKEN', (string) $this->request->request('token', Cookie::get('token')));
 
