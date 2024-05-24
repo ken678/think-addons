@@ -164,4 +164,20 @@ class Controller extends BaseController
 
         return View::fetch($template, $vars);
     }
+
+    /**
+     * 刷新Token
+     */
+    protected function token()
+    {
+        $check = $this->request->checkToken('__token__');
+        // 刷新token
+        $token = $this->request->buildToken();
+        if ($this->request->isAjax()) {
+            header('__token__: ' . $token);
+        }
+        if (false === $check) {
+            $this->error('令牌错误！', '', ['__token__' => $token]);
+        }
+    }
 }
