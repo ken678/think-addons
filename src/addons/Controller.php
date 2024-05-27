@@ -151,8 +151,8 @@ class Controller extends BaseController
     protected function fetch($template = '', $vars = [], $replace = [], $config = [])
     {
         $controller = parse_name($this->controller);
-        if ('think' == strtolower(Config::get('template.type')) && $controller && 0 !== strpos($template, '/')) {
-            $depr     = Config::get('template.view_depr');
+        if ('think' == strtolower(Config::get('view.type')) && $controller && 0 !== strpos($template, '/')) {
+            $depr     = Config::get('view.view_depr');
             $template = str_replace(['/', ':'], $depr, $template);
             if ('' == $template) {
                 // 如果模板文件名为空 按照默认规则定位
