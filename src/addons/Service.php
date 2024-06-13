@@ -72,7 +72,7 @@ class Service
                 $json = (array) json_decode($content, true);
                 if (isset($json['code'])) {
                     //下载返回错误，抛出异常
-                    throw new AddonException($json['msg'], $json['code'], $json['data']);
+                    throw new AddonException($json['msg'], $json['code'], $json['data'] ?? []);
                 }
             };
         } catch (TransferException $e) {
