@@ -22,12 +22,5 @@
         "files": [
             "src/common.php"
         ]
-    },
-    "extra": {
-        "think":{
-            "services":[
-                "think\\AddonsService"
-            ]
-        }
     }
 }
