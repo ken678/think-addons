@@ -13,7 +13,6 @@ namespace think;
 use app\common\middleware\CommonInit;
 use think\facade\Cache;
 use think\facade\Config;
-use think\facade\Env;
 use think\facade\Event;
 use think\facade\Route;
 use think\helper\Str;
@@ -42,7 +41,7 @@ class AddonsService extends Service
      */
     private function addon_event()
     {
-        $hooks = Env::get('APP_DEBUG') ? [] : Cache::get('hooks', []);
+        $hooks = $this->app->isDebug() ? [] : Cache::get('hooks', []);
         if (empty($hooks)) {
             $hooks = (array) Config::get('addons.hooks');
             // 初始化钩子
