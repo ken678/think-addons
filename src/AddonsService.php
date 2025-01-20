@@ -66,8 +66,8 @@ class AddonsService extends Service
     public function boot()
     {
         $this->registerRoutes(function (Route $route) {
-            $execute = '\\think\\addons\\Route::execute';
-            $route->rule("addons/:addon/[:controller]/[:action]", $execute)->middleware([CommonInit::class]);
+            $dispatch = \think\addons\dispatch\Controller::class;
+            $route->rule("addons/:addon/[:controller]/[:action]", $dispatch)->middleware([CommonInit::class]);
 
             //注册路由
             $routeArr = (array) Config::get('addons.route');
@@ -82,10 +82,10 @@ class AddonsService extends Service
                             'indomain' => 1,
                         ];
                     }
-                    $route->domain($domain, function () use ($drules, $route, $execute) {
+                    $route->domain($domain, function () use ($drules, $route, $dispatch) {
                         // 动态注册域名的路由规则
                         foreach ($drules as $k => $rule) {
-                            $route->rule($k, $execute)
+                            $route->rule($k, $dispatch)
                                 ->middleware([CommonInit::class])
                                 ->name($k)
                                 ->completeMatch(true)
@@ -97,7 +97,7 @@ class AddonsService extends Service
                         continue;
                     }
                     [$addon, $controller, $action] = explode('/', $v);
-                    $route->rule($k, $execute)
+                    $route->rule($k, $dispatch)
                         ->middleware([CommonInit::class])
                         ->name($k)
                         ->completeMatch(true)
