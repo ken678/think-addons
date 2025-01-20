@@ -72,6 +72,9 @@ class Controller extends Dispatch
         // 设置插件命名空间
         $this->app->setNamespace($this->namespace . '\\' . $this->addonName);
 
+        // 加载应用
+        $this->load();
+
         // 设置当前请求的控制器、操作
         $this->request
             ->setController($this->controller)
@@ -113,5 +116,24 @@ class Controller extends Dispatch
         }
 
         throw new ClassNotFoundException('class not exists:' . $class, $class);
+    }
+
+    /**
+     * 加载应用文件
+     */
+    public function load()
+    {
+        if (is_file($this->addonPath . 'common.php')) {
+            include_once $this->addonPath . 'common.php';
+        }
+        if (is_file($this->addonPath . 'event.php')) {
+            $this->app->loadEvent(include $this->addonPath . 'event.php');
+        }
+        if ($this->addonPath . 'middleware.php') {
+            $this->app->middleware->import(include $this->addonPath . 'middleware.php', 'route');
+        }
+        if (is_file($this->addonPath . 'provider.php')) {
+            $this->app->bind(include $this->addonPath . 'provider.php');
+        }
     }
 }
