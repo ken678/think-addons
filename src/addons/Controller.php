@@ -19,6 +19,7 @@ use app\common\library\Auth;
 use think\App;
 use think\facade\Config;
 use think\facade\Cookie;
+use think\facade\Event;
 use think\facade\Lang;
 use think\facade\View;
 
@@ -144,6 +145,11 @@ class Controller extends BaseController
         $this->assign('user', $this->auth->getUser());
 
         $site = Config::get("site");
+
+        // 上传信息配置后
+        $upload = array_merge(\app\common\model\Config::upload(), ...Event::trigger("upload_config_init"));
+        Config::set(array_merge(Config::get('upload'), $upload), 'upload');
+
         $this->assign('site', $site);
     }
 
