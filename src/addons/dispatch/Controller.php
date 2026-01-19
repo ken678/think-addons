@@ -30,7 +30,7 @@ class Controller extends Dispatch
      * 操作名
      * @var string
      */
-    private $actionName;
+    protected $actionName;
 
     /**
      * 插件名称
