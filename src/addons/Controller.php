@@ -128,13 +128,6 @@ class Controller extends BaseController
             $this->error('你没有权限访问');
             }*/
             }
-            //判断一下vip是否过期
-            if ($this->auth->vip) {
-                if ($this->auth->overduedate < time()) {
-                    $this->auth->logout();
-                    $this->error('VIP已过期，请重新登录', 'index/user/login');
-                }
-            }
         } else {
             // 如果有传递token才验证是否登录状态
             if ($token) {
