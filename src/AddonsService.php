@@ -39,7 +39,7 @@ class AddonsService extends Service
             $routeArr = (array) Config::get('addons.route');
             foreach ($routeArr as $k => $v) {
                 if (is_array($v)) {
-                    $domain = $v['domain'];
+                    $domain = array_filter(array_map('trim', explode(',', $v['domain'])));
                     $drules = [];
                     foreach ($v['rule'] as $m => $n) {
                         [$addon, $controller, $action] = explode('/', $n);
