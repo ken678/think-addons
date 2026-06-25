@@ -404,8 +404,12 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
     //$indomain     = isset($dispatch['var']['indomain']) && $dispatch['var']['indomain'] ? true : false;
     $indomain     = false;
     $domainprefix = $config && isset($config['domain']) && $config['domain'] ? $config['domain'] : '';
-    $domain       = $domainprefix ? $domainprefix : $domain;
-    $rewrite      = $config && isset($config['rewrite']) && $config['rewrite'] ? $config['rewrite'] : [];
+    // 多域名场景下，生成URL时取第一个作为主域名
+    if (is_string($domainprefix) && strpos($domainprefix, ',') !== false) {
+        $domainprefix = trim(explode(',', $domainprefix)[0]);
+    }
+    $domain  = $domainprefix ? $domainprefix : $domain;
+    $rewrite = $config && isset($config['rewrite']) && $config['rewrite'] ? $config['rewrite'] : [];
     if ($rewrite) {
         $path = substr($url, stripos($url, '/') + 1);
         if (isset($rewrite[$path]) && $rewrite[$path]) {
